@@ -1,5 +1,7 @@
 # 🎵 Chromatic Tuner PWA
 
+https://mindfulfarmer.github.io/chromatictuner/
+
 A sleek, highly accurate, browser-based chromatic instrument tuner. Built with vanilla web technologies, this tuner features a modern glassmorphism UI, real-time pitch detection, and dual notation support for both Western and Indian (Hindustani) musical scales.
 
 ## ✨ Features
