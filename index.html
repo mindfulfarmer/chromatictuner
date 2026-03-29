@@ -548,6 +548,40 @@
         let isTuning = false;
         let animationId = null;
 
+        // --- Wake Lock Management ---
+        let wakeLock = null;
+
+        async function requestWakeLock() {
+            if ('wakeLock' in navigator) {
+                try {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                    console.log('Screen Wake Lock active');
+                    
+                    wakeLock.addEventListener('release', () => {
+                        console.log('Screen Wake Lock released automatically');
+                    });
+                } catch (err) {
+                    console.warn(`Wake Lock error: ${err.name}, ${err.message}`);
+                }
+            }
+        }
+
+        function releaseWakeLock() {
+            if (wakeLock !== null) {
+                wakeLock.release().then(() => {
+                    wakeLock = null;
+                    console.log('Screen Wake Lock released manually');
+                });
+            }
+        }
+
+        // Re-acquire wake lock if the app is minimized and then brought back to the foreground
+        document.addEventListener('visibilitychange', async () => {
+            if (document.visibilityState === 'visible' && isTuning) {
+                await requestWakeLock();
+            }
+        });
+
         const toggleBtn = document.getElementById('toggle-btn');
         const btnText = document.getElementById('btn-text');
         const micIcon = document.getElementById('mic-icon');
@@ -680,6 +714,9 @@
                     await audioContext.suspend();
                 }
                 
+                // Release the screen wake lock
+                releaseWakeLock();
+                
                 document.body.classList.remove('tuning-active');
                 btnText.textContent = 'Tune';
                 micIcon.style.color = 'currentColor'; 
@@ -714,6 +751,9 @@
                     document.body.classList.add('tuning-active');
                     btnText.textContent = 'Stop Tuning';
                     micIcon.style.color = '#f87171'; 
+                    
+                    // Keep the screen awake
+                    await requestWakeLock();
                     
                     updatePitch();
                 } catch (err) {
