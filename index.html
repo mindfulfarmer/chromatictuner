@@ -12,7 +12,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Tuner">
-    <link rel="apple-touch-icon" href="./icon-192.png">
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png">
 
     <style>
         /* Reset and Base Styles */
@@ -47,7 +47,10 @@
             user-select: none;
             -webkit-user-select: none;
             touch-action: manipulation;
-            padding: 15px 10px; 
+            
+            /* Safe Area Padding for Mobile Devices (Notches, Gesture bars) */
+            padding: max(15px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(15px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
+            
             box-sizing: border-box;
             transition: background 0.5s ease;
         }
@@ -352,6 +355,26 @@
             height: 22px;
         }
 
+        /* --- Active Tuning Button State (Red Frosty & Pulsating only) --- */
+        body.tuning-active .glass-btn {
+            background: linear-gradient(145deg, rgba(239, 68, 68, 0.45), rgba(153, 27, 27, 0.15));
+            border: 1px solid rgba(248, 113, 113, 0.5);
+            animation: starkBreathe 1.2s infinite alternate cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        body.tuning-active .glass-btn:hover {
+            background: linear-gradient(145deg, rgba(239, 68, 68, 0.55), rgba(153, 27, 27, 0.25));
+        }
+
+        @keyframes starkBreathe {
+            0% {
+                transform: scale(1);
+            }
+            100% {
+                transform: scale(1.04);
+            }
+        }
+
         /* --- 5. Modal Styling --- */
         .modal-overlay {
             position: fixed;
@@ -547,6 +570,7 @@
         let globalStream = null; // Added: Holds the mic stream permanently for the session
         let isTuning = false;
         let animationId = null;
+        let wasInTune = false; // Added: Tracks tuning state to trigger haptics only once
 
         // --- Wake Lock Management ---
         let wakeLock = null;
@@ -685,16 +709,29 @@
                         tuningIndicator.classList.add('in-tune');
                         highlightRegion.style.borderColor = 'rgba(74, 222, 128, 0.5)';
                         highlightRegion.style.boxShadow = '0 0 35px rgba(74, 222, 128, 0.25)';
-                    } else if (cents < -5) {
-                        activeEl.classList.add('flat');
-                        tuningIndicator.classList.add('flat');
-                        highlightRegion.style.borderColor = 'rgba(96, 165, 250, 0.4)';
-                        highlightRegion.style.boxShadow = '0 0 30px rgba(96, 165, 250, 0.2)';
+                        
+                        // Trigger Haptic Feedback exactly once when landing in-tune
+                        if (!wasInTune) {
+                            if (navigator.vibrate) {
+                                navigator.vibrate(50); 
+                            }
+                            wasInTune = true;
+                        }
                     } else {
-                        activeEl.classList.add('sharp');
-                        tuningIndicator.classList.add('sharp');
-                        highlightRegion.style.borderColor = 'rgba(248, 113, 113, 0.4)';
-                        highlightRegion.style.boxShadow = '0 0 30px rgba(248, 113, 113, 0.2)';
+                        // Reset the haptic lock if we drift out of tune
+                        wasInTune = false; 
+                        
+                        if (cents < -5) {
+                            activeEl.classList.add('flat');
+                            tuningIndicator.classList.add('flat');
+                            highlightRegion.style.borderColor = 'rgba(96, 165, 250, 0.4)';
+                            highlightRegion.style.boxShadow = '0 0 30px rgba(96, 165, 250, 0.2)';
+                        } else {
+                            activeEl.classList.add('sharp');
+                            tuningIndicator.classList.add('sharp');
+                            highlightRegion.style.borderColor = 'rgba(248, 113, 113, 0.4)';
+                            highlightRegion.style.boxShadow = '0 0 30px rgba(248, 113, 113, 0.2)';
+                        }
                     }
                 }
             }
@@ -707,6 +744,7 @@
         toggleBtn.addEventListener('click', async () => {
             if (isTuning) {
                 isTuning = false;
+                wasInTune = false; // Reset tuning lock on stop
                 cancelAnimationFrame(animationId);
                 
                 // Suspend the audio context to save CPU, but keep the stream alive
@@ -750,7 +788,7 @@
                     isTuning = true;
                     document.body.classList.add('tuning-active');
                     btnText.textContent = 'Stop Tuning';
-                    micIcon.style.color = '#f87171'; 
+                    micIcon.style.color = '#ffffff'; // Stays crisp white against the red breathing button
                     
                     // Keep the screen awake
                     await requestWakeLock();
