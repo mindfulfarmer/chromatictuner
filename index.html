@@ -25,6 +25,9 @@
         }
 
         html, body {
+            /* Enforce dark mode at the browser level */
+            color-scheme: dark; 
+            
             /* Absolutely no scrolling */
             height: 100vh;
             width: 100vw;
@@ -104,7 +107,7 @@
         .carousel-highlight {
             position: absolute;
             top: 50%; left: 50%;
-            width: 56%; 
+            width: 210px; 
             height: 70%;
             background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.06));
             transform: translate(-50%, -50%);
@@ -724,12 +727,32 @@
             }
         });
 
-        // --- SW Registration ---
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW Registration skipped.'));
-            });
-        }
+        // --- SW Registration & Cache Management ---
+        window.addEventListener('load', () => {
+            // Check if the app is running as an installed PWA
+            const isPWA = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+
+            if (!isPWA) {
+                // If opened in a regular browser, clear all previous caches
+                if ('caches' in window) {
+                    caches.keys().then(cacheNames => {
+                        cacheNames.forEach(cacheName => {
+                            caches.delete(cacheName);
+                        });
+                        console.log('Browser mode detected: Cleared previous caches.');
+                    });
+                }
+            } else {
+                console.log('PWA mode detected: Caches preserved.');
+            }
+
+            // Register Service Worker
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('./sw.js').catch(err => {
+                    console.log('SW Registration failed or skipped:', err);
+                });
+            }
+        });
     </script>
 </body>
 </html>
